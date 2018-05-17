@@ -3,13 +3,16 @@ package systemctl
 import (
 	"bytes"
 	"errors"
+	"time"
 )
 
 // StateAggregator is an utility to calc state statistics
 type StateAggregator struct {
+	ResourceName         string
 	AggState             map[string]uint64
 	CurrentState         string
 	CurrentStateDuration uint64
+	StateCollector       Collector
 }
 
 // State is a systemctl service state and it's duration
@@ -34,6 +37,55 @@ const DurFieldSuffix string = "_dur"
 
 // CountFieldSuffix is the suffix appended to create unique field names for state count
 const CountFieldSuffix string = "_count"
+
+// Collector is a function to continously collect samples
+type Collector struct {
+	SampleRate    int
+	Done          chan bool
+	Collect       chan bool
+	SampleResults chan []Sample
+}
+
+// CollectSamples samples system control state
+func (c *Collector) CollectSamples(resourceName string, sampler StateSampler) {
+	samples := make([]Sample, 0)
+	for {
+		select {
+		default:
+			sample, err := sampler.Sample(resourceName)
+			if err != nil {
+				//fmt.Printf("Warning error reading sample %s\n", err)
+			} else {
+				samples = append(samples, sample)
+				time.Sleep(time.Duration(c.SampleRate) * time.Second)
+			}
+		case <-c.Collect:
+			c.SampleResults <- samples
+			lastSample := samples[len(samples)-1]
+			samples = make([]Sample, 1)
+			samples[0] = lastSample
+		case <-c.Done:
+			return
+		}
+	}
+}
+
+// Aggregate aggregates the current set of samples with the previous samples
+func (a *StateAggregator) Aggregate() error {
+	// notify sampler of collection
+	a.StateCollector.Collect <- true
+	// read samples
+	samples := <-a.StateCollector.SampleResults
+	// aggregate samples into states
+	states, err := a.AggregateSamples(samples)
+	if err != nil {
+		return err
+	}
+	// add states to aggregation
+	a.AggregateStates(states, a.CurrentStateDuration)
+
+	return nil
+}
 
 // AggregateSamples creates states and their duration from a set of samples
 func (a *StateAggregator) AggregateSamples(samples []Sample) ([]State, error) {
