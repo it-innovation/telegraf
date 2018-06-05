@@ -99,6 +99,7 @@ import (
 	_ "github.com/influxdata/telegraf/plugins/inputs/syslog"
 	_ "github.com/influxdata/telegraf/plugins/inputs/sysstat"
 	_ "github.com/influxdata/telegraf/plugins/inputs/system"
+	_ "github.com/influxdata/telegraf/plugins/inputs/systemctl"
 	_ "github.com/influxdata/telegraf/plugins/inputs/tail"
 	_ "github.com/influxdata/telegraf/plugins/inputs/tcp_listener"
 	_ "github.com/influxdata/telegraf/plugins/inputs/teamspeak"
