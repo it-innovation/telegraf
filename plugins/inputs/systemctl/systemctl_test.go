@@ -15,7 +15,6 @@ type MockSampler struct{}
 
 func (t *MockSampler) Sample(serviceName string) (Sample, error) {
 	timestamp := time.Now().UnixNano()
-	//fmt.Printf("Time stamp %d\n", timestamp)
 	s := Sample{name: "active", timestamp: uint64(timestamp)}
 	return s, nil
 }
@@ -26,6 +25,7 @@ func TestOnePeriodOneServiceCollection(t *testing.T) {
 	s := Systemctl{
 		Services:   services,
 		SampleRate: 2,
+		LogLevel:   "debug",
 		Sampler:    &MockSampler{},
 	}
 
@@ -45,7 +45,6 @@ func TestOnePeriodOneServiceCollection(t *testing.T) {
 	}
 
 	for i, service := range services {
-		fmt.Printf("Checking : %v\n", service)
 		tags := map[string]string{"resource": service}
 		AssertContainsTaggedFields(t, &acc, "service_config_state", results[i], tags)
 	}
@@ -57,6 +56,7 @@ func TestOnePeriodCollection(t *testing.T) {
 	s := Systemctl{
 		Services:   services,
 		SampleRate: 2,
+		LogLevel:   "debug",
 		Sampler:    &MockSampler{},
 	}
 

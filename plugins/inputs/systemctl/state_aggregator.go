@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // StateAggregator is an utility to calc state statistics
@@ -52,19 +54,35 @@ func (c *Collector) CollectSamples(resourceName string, sampler StateSampler) {
 	for {
 		select {
 		default:
+			log.WithFields(log.Fields{
+				"ResourceName": resourceName,
+			}).Debug("Getting sample")
 			sample, err := sampler.Sample(resourceName)
 			if err != nil {
-				//fmt.Printf("Warning error reading sample %s\n", err)
+				log.WithFields(log.Fields{
+					"ResourceName": resourceName,
+				}).Error("Warning error reading sample")
 			} else {
 				samples = append(samples, sample)
+				log.WithFields(log.Fields{
+					"ResourceName": resourceName,
+					"SampleCount":  len(samples),
+				}).Debug("Retrieved sample")
 				time.Sleep(time.Duration(c.SampleRate) * time.Second)
 			}
 		case <-c.Collect:
+			log.WithFields(log.Fields{
+				"ResourceName": resourceName,
+			}).Debug("Received notification to collect samples")
 			c.SampleResults <- samples
+			// Creating a new sample array with last sample as the 1st sample of the next collection
 			lastSample := samples[len(samples)-1]
 			samples = make([]Sample, 1)
 			samples[0] = lastSample
 		case <-c.Done:
+			log.WithFields(log.Fields{
+				"ResourceName": resourceName,
+			}).Debug("Received notification to stop collecting")
 			return
 		}
 	}
@@ -72,9 +90,9 @@ func (c *Collector) CollectSamples(resourceName string, sampler StateSampler) {
 
 // Aggregate aggregates the current set of samples with the previous samples
 func (a *StateAggregator) Aggregate() error {
-	// notify sampler of collection
+	// notify sampler of collection on Collect channel
 	a.StateCollector.Collect <- true
-	// read samples
+	// read samples from SampleResults channel
 	samples := <-a.StateCollector.SampleResults
 	// aggregate samples into states
 	states, err := a.AggregateSamples(samples)
@@ -91,6 +109,12 @@ func (a *StateAggregator) Aggregate() error {
 func (a *StateAggregator) AggregateSamples(samples []Sample) ([]State, error) {
 	sampleCount := len(samples)
 	// error if no samples to aggregate
+	log.WithFields(log.Fields{
+		"Resource":    a.ResourceName,
+		"SampleCount": sampleCount,
+	}).Debug("Aggregating samples")
+
+	// we cannot aggregate less than two samples as it makes no sense
 	if sampleCount < 2 {
 		return nil, errors.New("2 or more samples needed for aggregation")
 	}

@@ -1,12 +1,18 @@
 package systemctl
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func TestAggregateSamples(t *testing.T) {
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
+
 	var samples = []Sample{
 		Sample{name: "active", timestamp: 0},
 		Sample{name: "active", timestamp: 2},
@@ -82,6 +88,7 @@ func TestAggregateSamples(t *testing.T) {
 func AssertStates(t *testing.T, initialState string, initialStateTime uint64, expectedCurrentState string, expectedCrrentStateTime uint64, expectedStates []State, expectedTotals map[string]int, samples []Sample) {
 
 	aggregator := StateAggregator{
+		ResourceName:         "TestResource",
 		AggState:             make(map[string]uint64),
 		CurrentState:         initialState,
 		CurrentStateDuration: initialStateTime,
