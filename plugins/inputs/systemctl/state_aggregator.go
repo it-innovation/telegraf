@@ -71,14 +71,21 @@ func (c *Collector) CollectSamples(resourceName string, sampler StateSampler) {
 				time.Sleep(time.Duration(c.SampleRate) * time.Second)
 			}
 		case <-c.Collect:
+			sampleCount := len(samples)
 			log.WithFields(log.Fields{
 				"ResourceName": resourceName,
+				"SampleCount":  sampleCount,
 			}).Debug("Received notification to collect samples")
 			c.SampleResults <- samples
 			// Creating a new sample array with last sample as the 1st sample of the next collection
-			lastSample := samples[len(samples)-1]
-			samples = make([]Sample, 1)
-			samples[0] = lastSample
+			if sampleCount > 0 {
+				lastSample := samples[sampleCount-1]
+				samples = make([]Sample, 1)
+				samples[0] = lastSample
+			} else {
+				// no previous samples
+				samples = make([]Sample, 0)
+			}
 		case <-c.Done:
 			log.WithFields(log.Fields{
 				"ResourceName": resourceName,
