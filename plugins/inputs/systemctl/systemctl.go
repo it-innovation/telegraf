@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/inputs"
 
 	log "github.com/Sirupsen/logrus"
@@ -204,7 +205,10 @@ func (s *ServiceSampler) Sample(serviceName string) (Sample, error) {
 	var sample Sample
 
 	// execute the os command to get the status of the systemctl service
-	out, err := exec.Command("systemctl", "--no-pager", "show", serviceName).Output()
+	c := exec.Command("systemctl", "--no-pager", "show", serviceName)
+	out, err := internal.CombinedOutputTimeout(c,
+		time.Second*time.Duration(2))
+
 	if err != nil {
 		sampleCmd := "systemctl --no-pager show " + serviceName
 		log.WithFields(log.Fields{
